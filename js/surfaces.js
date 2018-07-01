@@ -56,20 +56,38 @@ function setupPoints()
     for(var i = 0; i < points.length; i++)
     {
         var pointGeometry = new THREE.Geometry();
-        pointGeometry.vertices.push(points[i]);
-        pointGeometry.colors = [new THREE.Color(1, 1, 1)];
+        pointGeometry.vertices.push(new THREE.Vector3(0, 0, 0));
         pointGeometry.computeBoundingBox();
-        var pointMaterial = new THREE.PointsMaterial({size: 0.5, vertexColors: THREE.VertexColors });
+        var pointMaterial = new THREE.PointsMaterial({size: 0.5, color: new THREE.Color(1, 1, 1) });
         var point = new THREE.Points(pointGeometry, pointMaterial);
-        point.position.set(0, 0, 0);
+        point.position.set(points[i].x, points[i].y, points[i].z);
 
         pointCloud.push(point);
         scene.add(point);
     }
 }
 
+
+var line = null;
 function render()
 {
+    if (line != null)
+    {
+        scene.remove(line);
+    }
+
+    var curve = new THREE.CubicBezierCurve3(
+        pointCloud[0].position,
+        pointCloud[1].position,
+        pointCloud[2].position,
+        pointCloud[3].position
+    );
+    var p = curve.getPoints(50);
+    var geometry = new THREE.BufferGeometry().setFromPoints(p);
+    var material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    line = new THREE.Line(geometry, material);
+    scene.add(line);
+
     renderer.render( scene, camera );
 }
 
