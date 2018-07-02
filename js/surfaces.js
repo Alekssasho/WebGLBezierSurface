@@ -1,5 +1,6 @@
 var renderer;
 var scene;
+var finalScene;
 var stats;
 var camera;
 var controls;
@@ -31,6 +32,7 @@ function setupRendererAndStats()
     document.body.appendChild(stats.dom);
 
     scene = new THREE.Scene();
+    finalScene = new THREE.Scene();
 
     window.addEventListener( 'resize', onWindowResize, false );
 }
@@ -56,10 +58,19 @@ function setupGUI()
         width: 200
     });
 
+    var buttons = {
+        resetPoints : function() {
+            setupPoints(params.gridSize);
+            setupRaycaster();
+        }
+    }
+
     gui.add(params, 'gridSize', 2, 10, 1).onChange(function(value) { 
         setupPoints(value);
         setupRaycaster();
      });
+
+     gui.add(buttons, 'resetPoints');
 }
 
 function createSinglePoint(x, y, z)
@@ -99,6 +110,7 @@ function render()
         for(let l of lines)
         {
             scene.remove(l);
+            finalScene.remove(l);
         }
     }
 
@@ -113,9 +125,12 @@ function render()
         var p = curve.getPoints(50);
         var geometry = new THREE.BufferGeometry().setFromPoints(p);
         var material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-        var line = new THREE.Line(geometry, material); 
+        var line = new THREE.Line(geometry, material);
+        var clone = line.clone();
+        lines.push(clone);
         lines.push(line);
         scene.add(line);
+        finalScene.add(clone);
     }
 
     for(let i = 0; i < params.gridSize; i++)
@@ -130,11 +145,22 @@ function render()
         var geometry = new THREE.BufferGeometry().setFromPoints(p);
         var material = new THREE.LineBasicMaterial({ color: 0xff0000 });
         var line = new THREE.Line(geometry, material); 
+        var clone = line.clone();
         lines.push(line);
+        lines.push(clone);
         scene.add(line);
+        finalScene.add(clone);
     }
 
+    renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.setScissorTest(true);
     renderer.render( scene, camera );
+
+    renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.setScissorTest(true);
+    renderer.render( finalScene, camera );
 }
 
 function main()
