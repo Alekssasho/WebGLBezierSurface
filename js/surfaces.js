@@ -3,9 +3,15 @@ var scene;
 var stats;
 var camera;
 var controls;
+var gui;
 var dragControls;
 
 var pointCloud = [];
+
+// Globals params
+var params = {
+    gridSize: 4,
+}
 
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -44,6 +50,18 @@ function setupRaycaster()
     dragControls.addEventListener( 'dragend', function ( event ) { controls.enabled = true; } );
 }
 
+function setupGUI()
+{
+    gui = new dat.GUI({
+        width: 200
+    });
+
+    gui.add(params, 'gridSize', 2, 10, 1).onChange(function(value) { 
+        setupPoints(value);
+        setupRaycaster();
+     });
+}
+
 function createSinglePoint(x, y, z)
 {
     var pointGeometry = new THREE.Geometry();
@@ -57,6 +75,11 @@ function createSinglePoint(x, y, z)
 
 function setupPoints(gridSize)
 {
+    for(pt of pointCloud)
+    {
+        scene.remove(pt);
+    }
+    pointCloud = []
     for(var x = 0; x < gridSize; x++)
     {
         for(var y = 0; y < gridSize; y++)
@@ -68,7 +91,6 @@ function setupPoints(gridSize)
     }
 }
 
-var gridSize = 4;
 var lines = [];
 function render()
 {
@@ -80,14 +102,14 @@ function render()
         }
     }
 
-    for(let i = 0; i < gridSize; i++)
+    for(let i = 0; i < params.gridSize; i++)
     {
-        var curve = new THREE.CubicBezierCurve3(
-            pointCloud[i * gridSize + 0].position,
-            pointCloud[i * gridSize + 1].position,
-            pointCloud[i * gridSize + 2].position,
-            pointCloud[i * gridSize + 3].position
-        );
+        let pts = [];
+        for(let y = 0; y < params.gridSize; y++)
+        {
+            pts.push(pointCloud[i * params.gridSize + y].position);
+        }
+        var curve = new THREE.CatmullRomCurve3(pts);
         var p = curve.getPoints(50);
         var geometry = new THREE.BufferGeometry().setFromPoints(p);
         var material = new THREE.LineBasicMaterial({ color: 0xff0000 });
@@ -96,14 +118,14 @@ function render()
         scene.add(line);
     }
 
-    for(let i = 0; i < gridSize; i++)
+    for(let i = 0; i < params.gridSize; i++)
     {
-        var curve = new THREE.CubicBezierCurve3(
-            pointCloud[0 * gridSize + i].position,
-            pointCloud[1 * gridSize + i].position,
-            pointCloud[2 * gridSize + i].position,
-            pointCloud[3 * gridSize + i].position
-        );
+        let pts = [];
+        for(let y = 0; y < params.gridSize; y++)
+        {
+            pts.push(pointCloud[y * params.gridSize + i].position);
+        }
+        var curve = new THREE.CatmullRomCurve3(pts);
         var p = curve.getPoints(50);
         var geometry = new THREE.BufferGeometry().setFromPoints(p);
         var material = new THREE.LineBasicMaterial({ color: 0xff0000 });
@@ -119,8 +141,9 @@ function main()
 {
     setupRendererAndStats();
     setupCamera();
-    setupPoints(gridSize);
+    setupPoints(params.gridSize);
     setupRaycaster();
+    setupGUI();
 
     function loop() {
         requestAnimationFrame( loop );
