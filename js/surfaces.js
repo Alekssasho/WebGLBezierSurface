@@ -160,17 +160,41 @@ function setupSurface()
     let size = params.gridSize * params.subdivisionCount;
 
     function getSurfacePoint(u, v, target) {
-        var x = Math.floor(u * (size - 1));
-        var y = Math.floor(v * (size - 1));
-        var x1 = Math.ceil(u * (size - 1));
-        var y1 = Math.ceil(v * (size - 1));
-        var pos = pointCloud[y * params.gridSize + x].position;
-        var pos1 = pointCloud[y1 * params.gridSize + x1].position;
-        var result = new THREE.Vector3();
+
+        function factorial(x) {
+            let results = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800];
+            if(x > results.length)
+            {
+                console.error("wrong factorial");
+            }
+            return results[x];
+          }
+
+        function calcB(i, param) {
+            let a = factorial(params.gridSize) / (factorial(i) * factorial(params.gridSize - i));
+            let b = Math.pow(param, i);
+            let c = Math.pow(1 - param, params.gridSize - i);
+            return a * b * c;
+        }
+
+        let result = new THREE.Vector3(0, 0, 0);
+        for (let y = 0; y < params.gridSize; y++)
+        {
+            for (let x = 0; x < params.gridSize; x++)
+            {
+                let pt = pointCloud[y * params.gridSize + x].position.clone();
+                let bu = calcB(x, u);
+                let bv = calcB(y, v);
+                pt.multiplyScalar(bu);
+                pt.multiplyScalar(bv);
+                result.add(pt);
+            }
+        }
+
         target.set(
-            THREE.Math.lerp(pos.x, pos1.x, x1 - u * (size - 1)),
-            THREE.Math.lerp(pos.y, pos1.y, y1 - v * (size - 1)),
-            pos.z);
+            result.x,
+            result.y,
+            result.z);
     }
 
     let geometry = new THREE.ParametricGeometry(getSurfacePoint, size - 1, size - 1);
