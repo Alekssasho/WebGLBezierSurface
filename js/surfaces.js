@@ -14,6 +14,7 @@ var params = {
     gridSize: 4,
     subdivisionCount: 4,
     wireframe: false,
+    flatshaded: false,
 
 }
 
@@ -86,8 +87,9 @@ function setupGUI()
         setupRaycaster();
     });
 
-    gui.add(params, 'subdivisionCount', 2, 10, 1);
+    gui.add(params, 'subdivisionCount', 0, 10, 1);
     gui.add(params, "wireframe");
+    gui.add(params, "flatshaded");
 
     gui.add(buttons, 'resetPoints');
 }
@@ -164,10 +166,7 @@ function setupSurface()
         finalScene.remove(surface);
     }
 
-    let size = params.gridSize * params.subdivisionCount;
-
-    function getSurfacePoint(u, v, target) {
-
+    function getSurfacePoint(u, v) {
         function factorial(x) {
             let results = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800];
             if(x > results.length)
@@ -178,9 +177,10 @@ function setupSurface()
           }
 
         function calcB(i, param) {
-            let a = factorial(params.gridSize) / (factorial(i) * factorial(params.gridSize - i));
+            let gr = params.gridSize - 1;
+            let a = factorial(gr) / (factorial(i) * factorial(gr - i));
             let b = Math.pow(param, i);
-            let c = Math.pow(1 - param, params.gridSize - i);
+            let c = Math.pow(1 - param, gr - i);
             return a * b * c;
         }
 
@@ -197,20 +197,51 @@ function setupSurface()
                 result.add(pt);
             }
         }
-
-        target.set(
-            result.x,
-            result.y,
-            result.z);
+        return result;
     }
 
-    let geometry = new THREE.ParametricGeometry(getSurfacePoint, size - 1, size - 1);
+    let geometry = new THREE.Geometry();
+    let size = params.subdivisionCount + 2;
+    for(let y = 0; y < size; y++)
+    {
+        for(let x = 0; x < size; x++)
+        {
+            let u = x / (size - 1);
+            let v = y / (size - 1);
+            geometry.vertices.push(getSurfacePoint(u, v));
+        }
+    }
+
+    for(let y = 0; y < size - 1; y++)
+    {
+        for(let x = 0; x < size - 1; x++)
+        {
+            let v0 = y * size + x;
+            let v1 = (y + 1) * size + x;
+            let v2 = (y + 1) * size + x + 1;
+            let v3 = y * size + x + 1;
+            geometry.faces.push(new THREE.Face3(v0, v1, v2));
+            geometry.faces.push(new THREE.Face3(v0, v2, v3));
+        }
+    }
+
+    geometry.computeFaceNormals();
+    if(params.flatshaded)
+    {
+        geometry.computeFlatVertexNormals();
+    }
+    else
+    {
+        geometry.computeVertexNormals();
+    }
+
     let material;
     if(params.wireframe)
     {
         material = new THREE.MeshBasicMaterial({color: 0x00ff00, side: THREE.DoubleSide, wireframe:true })
     }
-    else {
+    else
+    {
         material = new THREE.MeshPhongMaterial({color: 0x00ff00, side: THREE.DoubleSide });
     }
     surface = new THREE.Mesh(geometry, material);
