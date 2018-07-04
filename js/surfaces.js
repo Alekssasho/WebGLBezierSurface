@@ -12,7 +12,9 @@ var pointCloud = [];
 // Globals params
 var params = {
     gridSize: 4,
-    subdivisionCount: 1,
+    subdivisionCount: 4,
+    wireframe: false,
+
 }
 
 function onWindowResize() {
@@ -36,11 +38,15 @@ function setupRendererAndStats()
     scene.background = new THREE.Color(0x001111);
     finalScene = new THREE.Scene();
 
-    var ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    var ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
     finalScene.add(ambientLight);
 
-    light = new THREE.PointLight(0xffffff, 0.6);
+    light = new THREE.PointLight(0xffffff, 0.7);
     light.position.set(0, 0, 5);
+    finalScene.add(light);
+
+    light = new THREE.PointLight(0xffffff, 0.3);
+    light.position.set(0, 0, -5);
     finalScene.add(light);
     finalScene.background = new THREE.Color(0x110011);
 
@@ -52,7 +58,6 @@ function setupCamera()
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 10;
     controls = new THREE.OrbitControls( camera );
-    controls.enableZoom = false;
 }
 
 function setupRaycaster()
@@ -75,14 +80,14 @@ function setupGUI()
         }
     }
 
-    gui.add(params, 'gridSize', 2, 10, 1).onChange(function(value) { 
+    gui.add(params, 'gridSize', 2, 10, 1).onChange(function(value) {
+        controls.update();
         setupPoints(value);
         setupRaycaster();
     });
 
-    gui.add(params, 'subdivisionCount', 1, 10, 1).onChange(function(value) {
-        // TODO:
-    });
+    gui.add(params, 'subdivisionCount', 2, 10, 1);
+    gui.add(params, "wireframe");
 
     gui.add(buttons, 'resetPoints');
 }
@@ -92,7 +97,7 @@ function createSinglePoint(x, y, z)
     var pointGeometry = new THREE.Geometry();
     pointGeometry.vertices.push(new THREE.Vector3(0, 0, 0));
     pointGeometry.computeBoundingBox();
-    var pointMaterial = new THREE.PointsMaterial({size: 0.5, color: new THREE.Color(1, 1, 1) });
+    var pointMaterial = new THREE.PointsMaterial({size: 0.2, color: new THREE.Color(1, 1, 1) });
     var point = new THREE.Points(pointGeometry, pointMaterial);
     point.position.set(x, y, z);
     return point;
@@ -109,7 +114,9 @@ function setupPoints(gridSize)
     {
         for(var y = 0; y < gridSize; y++)
         {
-            var pt = createSinglePoint(x - gridSize / 2, y - gridSize / 2, 0);
+            let xcoord = x - gridSize / 2;
+            let ycoord =  y - gridSize / 2;
+            var pt = createSinglePoint(xcoord, ycoord, (x * x - y * y) * (1 / gridSize));
             pointCloud.push(pt);
             scene.add(pt);
         }
@@ -198,7 +205,14 @@ function setupSurface()
     }
 
     let geometry = new THREE.ParametricGeometry(getSurfacePoint, size - 1, size - 1);
-    let material = new THREE.MeshPhongMaterial({color: 0x00ff00, side: THREE.DoubleSide });
+    let material;
+    if(params.wireframe)
+    {
+        material = new THREE.MeshBasicMaterial({color: 0x00ff00, side: THREE.DoubleSide, wireframe:true })
+    }
+    else {
+        material = new THREE.MeshPhongMaterial({color: 0x00ff00, side: THREE.DoubleSide });
+    }
     surface = new THREE.Mesh(geometry, material);
     finalScene.add(surface);
 
