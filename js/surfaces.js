@@ -15,7 +15,7 @@ var params = {
     gridSize: 4,
     subdivisionCount: 4,
     wireframe: false,
-    flatshaded: false,
+    smooth: false,
 }
 
 function onWindowResize() {
@@ -140,7 +140,7 @@ function setupGUI()
 
     gui.add(params, 'subdivisionCount', 0, 20, 1);
     gui.add(params, "wireframe");
-    gui.add(params, "flatshaded");
+    gui.add(params, "smooth");
     gui.add(buttons, 'resetPoints');
 }
 var boxGeom = new THREE.BoxBufferGeometry(0.25, 0.25, 0.25);
@@ -276,19 +276,19 @@ function setupSurface()
     }
 
     geometry.computeFaceNormals();
-    if(params.flatshaded)
+    if(params.smooth)
     {
-        geometry.computeFlatVertexNormals();
+        geometry.computeVertexNormals();
     }
     else
     {
-        geometry.computeVertexNormals();
+        geometry.computeFlatVertexNormals();
     }
 
     let material;
     if(params.wireframe)
     {
-        material = new THREE.MeshBasicMaterial({color: 0x00000, side: THREE.DoubleSide, wireframe:true })
+        material = new THREE.MeshBasicMaterial({color: 0x000ff, side: THREE.DoubleSide, wireframe:true })
     }
     else
     {
