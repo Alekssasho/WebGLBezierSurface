@@ -6,6 +6,7 @@ var camera;
 var controls;
 var gui;
 var dragControls;
+var transformControl;
 
 var pointCloud = [];
 
@@ -15,7 +16,6 @@ var params = {
     subdivisionCount: 4,
     wireframe: false,
     flatshaded: false,
-
 }
 
 function onWindowResize() {
@@ -35,21 +35,36 @@ function setupRendererAndStats()
     stats = new Stats();
     document.body.appendChild(stats.dom);
 
+    // Control poitns scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x001111);
-    finalScene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
 
-    var ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+    var ambientLight = new THREE.AmbientLight(0xf0f0f0, 0.7);
+    scene.add(ambientLight);
+
+    // Surface scene
+    finalScene = new THREE.Scene();
+    finalScene.background = new THREE.Color(0xf0f0f0);
+
+    var ambientLight = new THREE.AmbientLight(0xf0f0f0, 0.4);
     finalScene.add(ambientLight);
 
-    light = new THREE.PointLight(0xffffff, 0.7);
-    light.position.set(0, 0, 5);
-    finalScene.add(light);
+    // Common spot light
+    var light = new THREE.SpotLight( 0xffffff, 0.7 );
+    light.position.set( 0, 1500, 200 );
 
-    light = new THREE.PointLight(0xffffff, 0.3);
-    light.position.set(0, 0, -5);
     finalScene.add(light);
-    finalScene.background = new THREE.Color(0x110011);
+    scene.add(light.clone());
+
+    // grid helper
+    var helper = new THREE.GridHelper( 60, 60 );
+    helper.position.y = -5;
+
+    finalScene.add(helper);
+
+    helper = new THREE.GridHelper( 60, 60 );
+    helper.position.y = -5;
+    scene.add(helper);
 
     window.addEventListener( 'resize', onWindowResize, false );
 }
@@ -58,7 +73,7 @@ function setupCamera()
 {
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 10;
-    controls = new THREE.OrbitControls( camera );
+    controls = new THREE.OrbitControls(camera);
 }
 
 function setupRaycaster()
@@ -66,6 +81,41 @@ function setupRaycaster()
     dragControls = new THREE.DragControls(pointCloud, camera, renderer.domElement);
     dragControls.addEventListener( 'dragstart', function ( event ) { controls.enabled = false; } );
     dragControls.addEventListener( 'dragend', function ( event ) { controls.enabled = true; } );
+
+    transformControl = new THREE.TransformControls( camera, renderer.domElement );
+    transformControl.addEventListener( 'change', render );
+    scene.add( transformControl );
+    transformControl.addEventListener( 'change', function( e ) {
+        cancelHideTransorm();
+    } );
+    transformControl.addEventListener( 'mouseDown', function( e ) {
+        cancelHideTransorm();
+    } );
+    transformControl.addEventListener( 'mouseUp', function( e ) {
+        delayHideTransform();
+    } );
+    var dragcontrols = new THREE.DragControls( pointCloud, camera, renderer.domElement ); //
+    dragcontrols.enabled = false;
+    dragcontrols.addEventListener( 'hoveron', function ( event ) {
+        transformControl.attach( event.object );
+        cancelHideTransorm();
+    } );
+    dragcontrols.addEventListener( 'hoveroff', function ( event ) {
+        delayHideTransform();
+    } );
+    var hiding;
+    function delayHideTransform() {
+        cancelHideTransorm();
+        hideTransform();
+    }
+    function hideTransform() {
+        hiding = setTimeout( function() {
+            transformControl.detach( transformControl.object );
+        }, 2500 )
+    }
+    function cancelHideTransorm() {
+        if ( hiding ) clearTimeout( hiding );
+    }
 }
 
 function setupGUI()
@@ -76,33 +126,30 @@ function setupGUI()
 
     var buttons = {
         resetPoints : function() {
+            controls.update();
+            transformControl.detach( transformControl.object );
             setupPoints(params.gridSize);
-            setupRaycaster();
         }
     }
 
     gui.add(params, 'gridSize', 2, 10, 1).onChange(function(value) {
         controls.update();
+        transformControl.detach( transformControl.object );
         setupPoints(value);
-        setupRaycaster();
     });
 
-    gui.add(params, 'subdivisionCount', 0, 10, 1);
+    gui.add(params, 'subdivisionCount', 0, 20, 1);
     gui.add(params, "wireframe");
     gui.add(params, "flatshaded");
-
     gui.add(buttons, 'resetPoints');
 }
-
+var boxGeom = new THREE.BoxBufferGeometry(0.25, 0.25, 0.25);
 function createSinglePoint(x, y, z)
 {
-    var pointGeometry = new THREE.Geometry();
-    pointGeometry.vertices.push(new THREE.Vector3(0, 0, 0));
-    pointGeometry.computeBoundingBox();
-    var pointMaterial = new THREE.PointsMaterial({size: 0.2, color: new THREE.Color(1, 1, 1) });
-    var point = new THREE.Points(pointGeometry, pointMaterial);
-    point.position.set(x, y, z);
-    return point;
+    var material = new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } );
+    var object = new THREE.Mesh( boxGeom, material );
+    object.position.set(x, y, z);
+    return object;
 }
 
 function setupPoints(gridSize)
@@ -111,7 +158,10 @@ function setupPoints(gridSize)
     {
         scene.remove(pt);
     }
-    pointCloud = []
+    while(pointCloud.length > 0)
+    {
+        pointCloud.pop();
+    }
     for(var x = 0; x < gridSize; x++)
     {
         for(var y = 0; y < gridSize; y++)
@@ -238,7 +288,7 @@ function setupSurface()
     let material;
     if(params.wireframe)
     {
-        material = new THREE.MeshBasicMaterial({color: 0x00ff00, side: THREE.DoubleSide, wireframe:true })
+        material = new THREE.MeshBasicMaterial({color: 0x00000, side: THREE.DoubleSide, wireframe:true })
     }
     else
     {
@@ -246,8 +296,6 @@ function setupSurface()
     }
     surface = new THREE.Mesh(geometry, material);
     finalScene.add(surface);
-
-    light.target = surface;
 }
 
 function render()
@@ -278,6 +326,7 @@ function main()
         requestAnimationFrame( loop );
 
         controls.update();
+        transformControl.update();
         render();
 
         stats.update();
